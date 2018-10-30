@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 import zipfile
 import os
 
-numberOfThreads = int(sys.argv[1])
+numberOfThreads = int(sys.argv[1]) #must be int
 minutesToSleep = 0.1
 minutesToZipFile = 5
 outputFileName = 'output.csv'

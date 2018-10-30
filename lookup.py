@@ -11,9 +11,9 @@ import os
 
 numberOfThreads = int(sys.argv[1])
 minutesToSleep = 0.1
-minutesToZipFile = 3
+minutesToZipFile = 5
 outputFileName = 'output.csv'
-inputFileName = 'list.txt'
+inputFileName = sys.argv[2]
 
 def formattedDateWithSeconds(date):
     return date.strftime('%Y%m%d%H%M%S')
@@ -26,9 +26,10 @@ def zipFile(fileName):
     zipfile.ZipFile(formattedDate(datetime.now()) + "_resolutions_archive" + ".zip", mode='w').write(fileName)
 
 def addHeaderIfNeeded():
+    #Add 
     headerText = "orig_domain,recur_ip,recur_domain,timestamp\n"
     containsHeader = False
-    with open(outputFileName, 'r') as listOutputFile:
+    with open(outputFileName, 'w+') as listOutputFile:
         for line in listOutputFile:
             if (line == headerText):
                 containsHeader = True
@@ -43,20 +44,28 @@ def isIP(ip):
     return re.match(validIpAddressRegex, ip)
 
 def query(line, outputFile):
-    strippedLine = line.strip()
+    strippedLine = line.strip() #Remove extra characters
+    print (strippedLine)
+    currentIPs = [] #Reset array of ips
 
     if  isIP(strippedLine):
         print ("IP needs to be converted to DNS")
         try:
+            print(socket.gethostbyaddr(strippedLine)[0])
             currentDNS = socket.gethostbyaddr(strippedLine)[0]
             outputFile.write(currentDNS + "," + strippedLine + ",NO_DOMAIN," + formattedDateWithSeconds(datetime.now()) + "\n")
         except:
             print ("Cant resolve")
     else:
-        # print ("DNS, need to resolve all ips")
-        currentIPs = list( map( lambda x: x[4][0], socket.getaddrinfo( \
-        line.strip(),22,type=socket.SOCK_STREAM)))
+        print("FQDN being passed in")
+        #Create a list of ips from the lookup if there are more than 1
+        try:
+            currentIPs = list( map( lambda x: x[4][0], socket.getaddrinfo( \
+           strippedLine,22,type=socket.SOCK_STREAM)))
+        except:
+            print("Can't resolve: " + strippedLine)
 
+        #Loop through each ip returned and write to output file
         for currentIP in currentIPs:
             try:
                 originDomain = strippedLine
@@ -71,9 +80,9 @@ def runFile():
     def wrapperTargetFunc(workerFunction, q, outputFile):
         while not q.empty():
             try:
-                work = q.get(timeout=3)  # or whatever
+                work = q.get(timeout=3)
             except queue.Empty:
-                print("Error getting url from queue")
+                print("Error getting task from queue")
             workerFunction(work, outputFile)
             q.task_done()
 
@@ -86,6 +95,7 @@ def runFile():
                 lines.append(line)
             listFile.close()
 
+        #Create Queue and put each line from input file in queue
         threadQueue = queue.Queue()
         for line in lines:
             threadQueue.put_nowait(line)
